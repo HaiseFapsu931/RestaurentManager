@@ -129,5 +129,31 @@ public class OrderController {
             + "Trạng thái: Đang bận\n"
             + "Số lượng món đã gọi: " + currentTable.getDetailedOrders().size() + "\n"
             + "TỔNG TIỀN PHẢI TRẢ: " + finalBill + " VND";       
-    }   
+    }
+    @PostMapping("/pay/{tableId}")
+    public String payTable(@PathVariable String tableId) {
+        Table currentTable = null;
+        for (Table t : tableData) {
+            if (t.getTableId().equalsIgnoreCase(tableId)) {
+                currentTable = t;
+                break;
+            }
+        }
+
+        if (currentTable == null) return "Bàn không tồn tại!";
+        if (currentTable.isAvailable()) return "Bàn này đã trống sẵn rồi, không cần thanh toán.";
+
+        // 1. Tính tiền lần cuối để thông báo
+        double finalBill = currentTable.calculateTotalPrice();
+
+        // 2. Dọn sạch danh sách món đã gọi trên bàn
+        currentTable.getDetailedOrders().clear();
+
+        // 3. Chuyển trạng thái bàn về Trống để đón khách mới
+        currentTable.setAvailable(true);
+
+        return "Thanh toán thành công bàn: " + currentTable.getTableId() + "\n"
+                + "Tổng số tiền đã thu: " + finalBill + " VND\n"
+                + "Trạng thái bàn hiện tại: Trống (Sẵn sàng đón khách mới!)";
+    }
 }

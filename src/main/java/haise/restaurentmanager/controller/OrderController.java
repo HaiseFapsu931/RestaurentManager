@@ -47,21 +47,16 @@ public class OrderController {
             throw new RuntimeException("Bàn không tồn tại!");
         }
 
-        // Chuyển trạng thái bàn thành bận
         currentTable.setAvailable(false);
 
-        // 2. Lấy trực tiếp danh sách món ĐANG CÓ SẴN trên bàn này ra để xử lý
-        // Nếu bàn chưa có món nào (mới vào), hãy đảm bảo danh sách không bị null
         if (currentTable.getDetailedOrders() == null) {
             currentTable.doingOrder(new ArrayList<>());
         }
         List<DetailedOrder> currentOrdersOfTable = currentTable.getDetailedOrders();
 
-        // 3. Duyệt danh sách món khách vừa gửi lên từ Postman
         for (OrderRequestDTO.ItemOrderDTO item : inputJson.getOrders()) {
             Dish foundDish = null;
 
-            // Tìm món ăn trong Menu theo ID
             if (item.getDishId() != null && !item.getDishId().trim().isEmpty()) {
                 for (Dish d : menuTinh) {
                     if (d.getDishId().equalsIgnoreCase(item.getDishId().trim())) {
@@ -71,7 +66,6 @@ public class OrderController {
                 }
             }
 
-            // Dự phòng tìm theo tên nếu thiếu ID
             if (foundDish == null && item.getDishName() != null && !item.getDishName().trim().isEmpty()) {
                 for (Dish d : menuTinh) {
                     if (d.getDishName().equalsIgnoreCase(item.getDishName().trim())) {
@@ -81,16 +75,15 @@ public class OrderController {
                 }
             }
 
-            // Nếu món hợp lệ, tiến hành đối chiếu gộp món
             if (foundDish != null) {
                 boolean isExisted = false;
 
-                // Duyệt danh sách ĐÃ CÓ của bàn để check trùng
+
                 for (DetailedOrder existingOrder : currentOrdersOfTable) {
                     String itemNote = item.getNote() != null ? item.getNote().trim() : "";
                     String existingNote = existingOrder.getNote() != null ? existingOrder.getNote().trim() : "";
 
-                    // Trùng mã món VÀ trùng ghi chú -> Cộng dồn
+     
                     if (existingOrder.getDish().getDishId().equalsIgnoreCase(foundDish.getDishId()) 
                             && existingNote.equalsIgnoreCase(itemNote)) {
 
@@ -100,7 +93,7 @@ public class OrderController {
                     }
                 }
 
-                // Nếu món này chưa từng có trên bàn (hoặc trùng món nhưng khác ghi chú) -> Thêm mới dòng
+                
                 if (!isExisted) {
                     currentOrdersOfTable.add(new DetailedOrder(foundDish, item.getAmount(), item.getNote()));
                 }

@@ -18,4 +18,13 @@ public class TableVip3 extends Table {
     public double getServiceFee(){
         return serviceFee;
     }
+    @Override
+    public double calculateTotalPrice() {
+        double total = 0;
+        for (DetailedOrder order : getDetailedOrders()) {
+            total += order.getDish().getPrice() * order.getAmount();
+        }
+        total +=  this.serviceFee;
+        return total;
+    }
 }

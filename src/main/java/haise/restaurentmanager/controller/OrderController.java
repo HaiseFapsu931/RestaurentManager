@@ -33,80 +33,101 @@ public class OrderController {
         tableData.add(new TableVip3("VIP3_001"));
     }
     @PostMapping("/order")
-public Table handleOrder(@RequestBody OrderRequestDTO inputJson) {
-    
-    // 1. Tìm bàn
-    Table currentTable = null;
-    for (Table t : tableData) {
-        if (t.getTableId().equalsIgnoreCase(inputJson.getTableId())) {
-            currentTable = t;
-            break;
+    public Table handleOrder(@RequestBody OrderRequestDTO inputJson) {
+
+        // 1. Tìm bàn
+        Table currentTable = null;
+        for (Table t : tableData) {
+            if (t.getTableId().equalsIgnoreCase(inputJson.getTableId())) {
+                currentTable = t;
+                break;
+            }
         }
-    }
-    if (currentTable == null) {
-        throw new RuntimeException("Bàn không tồn tại!");
-    }
+        if (currentTable == null) {
+            throw new RuntimeException("Bàn không tồn tại!");
+        }
 
-    // Chuyển trạng thái bàn thành bận
-    currentTable.setAvailable(false);
+        // Chuyển trạng thái bàn thành bận
+        currentTable.setAvailable(false);
 
-    // 2. Lấy trực tiếp danh sách món ĐANG CÓ SẴN trên bàn này ra để xử lý
-    // Nếu bàn chưa có món nào (mới vào), hãy đảm bảo danh sách không bị null
-    if (currentTable.getDetailedOrders() == null) {
-        currentTable.doingOrder(new ArrayList<>());
-    }
-    List<DetailedOrder> currentOrdersOfTable = currentTable.getDetailedOrders();
+        // 2. Lấy trực tiếp danh sách món ĐANG CÓ SẴN trên bàn này ra để xử lý
+        // Nếu bàn chưa có món nào (mới vào), hãy đảm bảo danh sách không bị null
+        if (currentTable.getDetailedOrders() == null) {
+            currentTable.doingOrder(new ArrayList<>());
+        }
+        List<DetailedOrder> currentOrdersOfTable = currentTable.getDetailedOrders();
 
-    // 3. Duyệt danh sách món khách vừa gửi lên từ Postman
-    for (OrderRequestDTO.ItemOrderDTO item : inputJson.getOrders()) {
-        Dish foundDish = null;
-        
-        // Tìm món ăn trong Menu theo ID
-        if (item.getDishId() != null && !item.getDishId().trim().isEmpty()) {
-            for (Dish d : menuTinh) {
-                if (d.getDishId().equalsIgnoreCase(item.getDishId().trim())) {
-                    foundDish = d;
-                    break;
+        // 3. Duyệt danh sách món khách vừa gửi lên từ Postman
+        for (OrderRequestDTO.ItemOrderDTO item : inputJson.getOrders()) {
+            Dish foundDish = null;
+
+            // Tìm món ăn trong Menu theo ID
+            if (item.getDishId() != null && !item.getDishId().trim().isEmpty()) {
+                for (Dish d : menuTinh) {
+                    if (d.getDishId().equalsIgnoreCase(item.getDishId().trim())) {
+                        foundDish = d;
+                        break;
+                    }
+                }
+            }
+
+            // Dự phòng tìm theo tên nếu thiếu ID
+            if (foundDish == null && item.getDishName() != null && !item.getDishName().trim().isEmpty()) {
+                for (Dish d : menuTinh) {
+                    if (d.getDishName().equalsIgnoreCase(item.getDishName().trim())) {
+                        foundDish = d;
+                        break;
+                    }
+                }
+            }
+
+            // Nếu món hợp lệ, tiến hành đối chiếu gộp món
+            if (foundDish != null) {
+                boolean isExisted = false;
+
+                // Duyệt danh sách ĐÃ CÓ của bàn để check trùng
+                for (DetailedOrder existingOrder : currentOrdersOfTable) {
+                    String itemNote = item.getNote() != null ? item.getNote().trim() : "";
+                    String existingNote = existingOrder.getNote() != null ? existingOrder.getNote().trim() : "";
+
+                    // Trùng mã món VÀ trùng ghi chú -> Cộng dồn
+                    if (existingOrder.getDish().getDishId().equalsIgnoreCase(foundDish.getDishId()) 
+                            && existingNote.equalsIgnoreCase(itemNote)) {
+
+                        existingOrder.setAmount(existingOrder.getAmount() + item.getAmount());
+                        isExisted = true;
+                        break;
+                    }
+                }
+
+                // Nếu món này chưa từng có trên bàn (hoặc trùng món nhưng khác ghi chú) -> Thêm mới dòng
+                if (!isExisted) {
+                    currentOrdersOfTable.add(new DetailedOrder(foundDish, item.getAmount(), item.getNote()));
                 }
             }
         }
-        
-        // Dự phòng tìm theo tên nếu thiếu ID
-        if (foundDish == null && item.getDishName() != null && !item.getDishName().trim().isEmpty()) {
-            for (Dish d : menuTinh) {
-                if (d.getDishName().equalsIgnoreCase(item.getDishName().trim())) {
-                    foundDish = d;
-                    break;
-                }
-            }
-        }
-        
-        // Nếu món hợp lệ, tiến hành đối chiếu gộp món
-        if (foundDish != null) {
-            boolean isExisted = false;
-            
-            // Duyệt danh sách ĐÃ CÓ của bàn để check trùng
-            for (DetailedOrder existingOrder : currentOrdersOfTable) {
-                String itemNote = item.getNote() != null ? item.getNote().trim() : "";
-                String existingNote = existingOrder.getNote() != null ? existingOrder.getNote().trim() : "";
-                
-                // Trùng mã món VÀ trùng ghi chú -> Cộng dồn
-                if (existingOrder.getDish().getDishId().equalsIgnoreCase(foundDish.getDishId()) 
-                        && existingNote.equalsIgnoreCase(itemNote)) {
-                    
-                    existingOrder.setAmount(existingOrder.getAmount() + item.getAmount());
-                    isExisted = true;
-                    break;
-                }
-            }
-            
-            // Nếu món này chưa từng có trên bàn (hoặc trùng món nhưng khác ghi chú) -> Thêm mới dòng
-            if (!isExisted) {
-                currentOrdersOfTable.add(new DetailedOrder(foundDish, item.getAmount(), item.getNote()));
-            }
-        }
-    }
 
-    return currentTable;
-    }
+        return currentTable;
+        }
+    @GetMapping("/checkout/{tableId}")
+    public String checkoutTable(@PathVariable String tableId) {
+        Table currentTable = null;
+        for (Table t : tableData) {
+            if (t.getTableId().equalsIgnoreCase(tableId)){
+                currentTable = t;
+                break;
+            }
+        }
+        if (currentTable == null) {
+            return "Bàn không tồn tại!";
+        }
+        if (currentTable.isAvailable()) {
+            return "Bàn này hiện đang trống, chưa có hoá đơn cần thanh toán";
+        }
+        double finalBill = currentTable.calculateTotalPrice();
+        return "HÓA ĐƠN THANH TOÁN BÀN: " + currentTable.getTableId() + "\n"
+            + "Trạng thái: Đang bận\n"
+            + "Số lượng món đã gọi: " + currentTable.getDetailedOrders().size() + "\n"
+            + "TỔNG TIỀN PHẢI TRẢ: " + finalBill + " VND";       
+    }   
 }

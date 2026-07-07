@@ -33,4 +33,5 @@ public abstract class Table {
         this.isAvailable = isAvailable;
         return this.isAvailable;
     }
+    public abstract double calculateTotalPrice();
 }
